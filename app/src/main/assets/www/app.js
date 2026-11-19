@@ -91,7 +91,7 @@ route(/^#?\/?$/, async () => {
     <div class="pbar"><i style="width:${Math.round(doneDays / plan.length * 100)}%"></i></div>
     <div class="mut" style="margin-top:6px">${doneDays} of ${plan.length} plan days done</div></div>`;
   if (S.last) h += `<a class="row" href="#/c/${S.last.s}/${S.last.c}"><span style="font-size:1.4em">📖</span><span style="flex:1"><div class="mut">Continue reading</div><b>${esc(S.last.title)}</b></span>›</a>`;
-  h += `<div class="seg" style="margin-top:8px"><a class="btn" href="#/practice">✅ Practice MCQs</a><a class="btn sec" href="#/mocks">⏱️ Mock tests</a><a class="btn sec" href="#/marks">🔖 Bookmarks</a></div>`;
+  h += `<div class="seg" style="margin-top:8px"><a class="btn" href="#/practice">✅ Practice MCQs</a><a class="btn sec" href="#/calc">🧮 Calculators</a><a class="btn sec" href="#/mocks">⏱️ Mock tests</a><a class="btn sec" href="#/marks">🔖 Bookmarks</a></div>`;
   h += `<h2>Subjects (most asked first)</h2>` + tiles('core');
   h += `<h2>Exam toolkit</h2>` + tiles('tool');
   V.innerHTML = h;
@@ -339,7 +339,7 @@ route(/^#\/marks$/, () => {
 });
 
 const FEATURES = ['14 subject handbooks + 6 exam-toolkit books, fully offline', 'Subject → topic → section navigation with diagrams and tables', 'Search across all notes', 'MCQ practice by subject with explanations, saved scores and a "My mistakes" list',
-  '5 timed mock tests (100 MCQs, 90 minutes) with marks per subject', 'Quick revision mode: every exam point plus formula, number and trap chapters', 'Bookmarks and "continue reading"', '12-week study plan with daily tick-off', 'Dark and light theme, adjustable text size', 'Check for updates, with a notification that says what is new'];
+  '5 timed mock tests (100 MCQs, 90 minutes) with marks per subject', 'Quick revision mode: every exam point plus formula, number and trap chapters', 'Bookmarks and "continue reading"', '12-week study plan with daily tick-off', '20 structural calculators (mix design, BBS, beams, slabs, columns, footings, steel, beam analysis, retaining walls) with step-by-step working', 'Dark and light theme, adjustable text size', 'Check for updates, with a notification that says what is new'];
 
 route(/^#\/more$/, () => {
   setBar('More', false, 'more');
@@ -371,6 +371,61 @@ window.onUpdateResult = (res) => {
     <button class="btn" id="dl">Download update</button><button class="btn sec" data-close>Later</button>`);
   $('#dl').onclick = () => { Android.openUrl(res.url); $('#modal').hidden = true; };
 };
+
+
+/* ---------- calculators ---------- */
+route(/^#\/calc$/, () => {
+  setBar('Structural calculators', false, 'calc');
+  let h = '<div class="card mut">SI units · ACI 318-19 · AISC 360-16. Every result shows its working. Check results before using them in a final design.</div>', g = '';
+  CALCS.forEach(c => { if (c.g !== g) { g = c.g; h += `<div class="part">${esc(g)}</div>`; } h += `<a class="row" href="#/calc/${c.id}"><span style="flex:1"><b>${esc(c.t)}</b><div class="mut">${esc(c.d)}</div></span>›</a>`; });
+  V.innerHTML = h;
+});
+route(/^#\/calc\/(\w+)$/, id => {
+  const c = CALCS.find(x => x.id === id); setBar(c.t, true, 'calc');
+  const saved = store.get('calc_' + id, {}), v = {};
+  c.inputs.forEach(i => v[i.k] = saved[i.k] != null ? saved[i.k] : i.v);
+  const field = i => {
+    const val = v[i.k];
+    const inp = i.o ? `<select data-k="${i.k}">${i.o.map(([a, b]) => `<option value="${esc(a)}" ${String(val) === String(a) ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>`
+      : `<input data-k="${i.k}" ${i.t === 'text' ? 'type="text"' : 'type="number" inputmode="decimal" step="any"'} value="${esc(val)}" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--ink);font-size:1em">`;
+    return `<label class="fld" data-f="${i.k}" style="display:block;margin:9px 0"><div class="mut">${esc(i.l)}${i.u ? ' (' + esc(i.u) + ')' : ''}</div>${inp}${i.h ? `<div class="mut" style="font-size:.78em">${esc(i.h)}</div>` : ''}</label>`;
+  };
+  V.innerHTML = `<div class="mut">${esc(c.d)}</div><div class="card">${c.inputs.map(field).join('')}<button class="btn wide" id="go">Calculate</button></div><div id="out"></div>${c.addable ? '<div id="sched"></div>' : ''}`;
+  const read = () => { V.querySelectorAll('[data-k]').forEach(e => { const i = c.inputs.find(x => x.k === e.dataset.k); v[i.k] = i.o || i.t === 'text' ? e.value : parseFloat(e.value) || 0; }); };
+  const vis = () => { read(); c.inputs.forEach(i => { const f = V.querySelector(`[data-f="${i.k}"]`); if (f) f.style.display = !i.show || i.show(v) ? 'block' : 'none'; }); };
+  V.querySelectorAll('select').forEach(e => e.onchange = vis); vis();
+  let last = null;
+  const go = () => {
+    read(); store.set('calc_' + id, v);
+    let r; try { r = c.run(Object.assign({}, v)); } catch (e) { $('#out').innerHTML = `<div class="card">Error: ${esc(e.message)}</div>`; return; }
+    last = r;
+    $('#out').innerHTML = `<div class="card"><b>Result</b><div class="tw" style="margin-top:8px"><table>${r.res.map(x => `<tr><td>${esc(x[0])}</td><td><b>${esc(x[1])}</b>${x[2] ? `<div class="mut">${esc(x[2])}</div>` : ''}</td></tr>`).join('')}</table></div>
+      ${(r.warn || []).map(w => `<div class="call" style="border-color:var(--bad)">⚠ ${esc(w)}</div>`).join('')}${r.svg || ''}
+      <div class="seg"><button class="btn sec" id="cp">📋 Copy result</button>${c.addable && r.row ? '<button class="btn" id="add">➕ Add to schedule</button>' : ''}</div></div>
+      <details open><summary>Working (step by step)</summary><ol style="padding-left:18px">${r.steps.map(s => `<li style="margin:6px 0">${s}</li>`).join('')}</ol></details>`;
+    $('#cp').onclick = () => {
+      const txt = c.t + '\n' + r.res.map(x => `${x[0]}: ${x[1]}${x[2] ? ' (' + x[2] + ')' : ''}`).join('\n') + '\n\nWorking:\n' + r.steps.map((s, k) => (k + 1) + '. ' + s.replace(/<[^>]+>/g, '')).join('\n');
+      if (window.Android && Android.copy) Android.copy(txt); else if (navigator.clipboard) navigator.clipboard.writeText(txt);
+      $('#cp').textContent = '✓ Copied';
+    };
+    const add = $('#add'); if (add) add.onclick = () => { const s = store.get('bbs', []); s.push(r.row); store.set('bbs', s); sched(); add.textContent = '✓ Added'; };
+    $('#out').scrollIntoView({ block: 'start' });
+  };
+  $('#go').onclick = go;
+  const sched = () => {
+    const el = $('#sched'); if (!el) return; const s = store.get('bbs', []);
+    if (!s.length) { el.innerHTML = ''; return; }
+    const tot = {}; s.forEach(r => tot[r.bar] = (tot[r.bar] || 0) + r.kg);
+    el.innerHTML = `<div class="card"><b>Bar bending schedule</b><div class="tw"><table><tr><th>Mark</th><th>Bar</th><th>No.</th><th>Cut length (mm)</th><th>kg</th><th></th></tr>${s.map((r, i) => `<tr><td>${esc(r.mark)}</td><td>${esc(r.bar)}</td><td>${r.n}</td><td>${r.cl}</td><td>${fx(r.kg, 1)}</td><td><button class="btn sec" style="padding:2px 8px;margin:0" data-del="${i}">✕</button></td></tr>`).join('')}</table></div>
+      <b>Totals</b>${Object.entries(tot).map(([b, k]) => `<div class="row" style="margin:4px 0;padding:8px"><span style="flex:1">${esc(b)}</span><b>${fx(k, 1)} kg</b></div>`).join('')}
+      <div class="row" style="padding:8px"><span style="flex:1"><b>Grand total</b></span><b>${fx(Object.values(tot).reduce((a, b) => a + b, 0), 1)} kg = ${fx(Object.values(tot).reduce((a, b) => a + b, 0) / 1000, 3)} t</b></div>
+      <div class="seg"><button class="btn sec" id="cps">📋 Copy schedule</button><button class="btn sec" id="clr">Clear schedule</button></div></div>`;
+    el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { s.splice(+b.dataset.del, 1); store.set('bbs', s); sched(); });
+    $('#clr').onclick = () => { store.set('bbs', []); sched(); };
+    $('#cps').onclick = () => { const t = 'BBS\n' + s.map(r => `${r.mark}\t${r.bar}\t${r.n} nos\t${r.cl} mm\t${fx(r.kg, 1)} kg`).join('\n') + '\n' + Object.entries(tot).map(([b, k]) => `${b}: ${fx(k, 1)} kg`).join('\n'); if (window.Android && Android.copy) Android.copy(t); else if (navigator.clipboard) navigator.clipboard.writeText(t); $('#cps').textContent = '✓ Copied'; };
+  };
+  sched();
+});
 
 /* ---------- router ---------- */
 async function render() {

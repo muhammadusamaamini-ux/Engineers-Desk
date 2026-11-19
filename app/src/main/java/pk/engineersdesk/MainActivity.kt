@@ -60,6 +60,13 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun openUrl(url: String) {
             runOnUiThread { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
         }
+        @JavascriptInterface fun copy(text: String) {
+            runOnUiThread {
+                val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("Engineer's Desk", text))
+                android.widget.Toast.makeText(this@MainActivity, "Copied", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
         @JavascriptInterface fun checkUpdate() {
             thread {
                 val res = try {
