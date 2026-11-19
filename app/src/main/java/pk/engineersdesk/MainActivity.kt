@@ -34,6 +34,10 @@ class MainActivity : AppCompatActivity() {
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.settings.allowFileAccess = false
+        web.settings.setSupportZoom(true)
+        web.settings.builtInZoomControls = true
+        web.settings.displayZoomControls = false
+        web.settings.loadWithOverviewMode = false
         web.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
                 loader.shouldInterceptRequest(request.url)

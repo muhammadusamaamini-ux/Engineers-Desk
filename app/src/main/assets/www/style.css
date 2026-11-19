@@ -83,3 +83,11 @@ mark{background:var(--acc);color:#1d1400;border-radius:3px;padding:0 2px}
 #toast span{flex:1}
 #toast button{background:none;border:0;color:var(--acc);font-weight:800;font-size:.95em;letter-spacing:.04em}
 .list a.done .n{cursor:pointer}
+figure img{cursor:zoom-in}
+#imgv{position:fixed;inset:0;z-index:40;background:#05070c;display:flex;flex-direction:column}
+#imgv[hidden]{display:none}
+.iv-stage{flex:1;overflow:hidden;display:grid;place-items:center;touch-action:none}
+.iv-stage img{max-width:100%;max-height:100%;background:#fff;transform-origin:center center;user-select:none;-webkit-user-drag:none}
+.iv-bar{display:flex;gap:8px;justify-content:center;padding:10px;background:#0f1420}
+.iv-bar button{background:#1f2940;color:#fff;border:1px solid #2a3550;border-radius:10px;min-width:54px;height:42px;font-size:1.2em}
+.iv-cap{color:#cdd8f2;font-size:.82em;padding:0 14px 12px;background:#0f1420;text-align:center}

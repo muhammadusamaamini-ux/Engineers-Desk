@@ -66,7 +66,7 @@ function blocks(bs) {
     if (b[0] === 'p') h += `<p>${b[1]}</p>`;
     else if (b[0] === 'call') h += `<div class="call">${b[1]}</div>`;
     else if (b[0] === 'new') h += `<div class="new">➕ ${b[1]}</div>`;
-    else if (b[0] === 'img') h += `<figure><img loading="lazy" src="data/${b[1]}" alt=""><figcaption>${esc(b[2] || '')}</figcaption></figure>`;
+    else if (b[0] === 'img') h += `<figure><img loading="lazy" src="data/${b[1]}" alt=""><figcaption>🔍 Tap to zoom · ${esc(b[2] || '')}</figcaption></figure>`;
     else if (b[0] === 'tbl') {
       const [hd, ...rows] = b[1];
       h += '<div class="tw"><table><tr>' + hd.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>' +
@@ -445,6 +445,44 @@ route(/^#\/calc\/(\w+)$/, id => {
     $('#cps').onclick = () => { const t = 'BBS\n' + s.map(r => `${r.mark}\t${r.bar}\t${r.n} nos\t${r.cl} mm\t${fx(r.kg, 1)} kg`).join('\n') + '\n' + Object.entries(tot).map(([b, k]) => `${b}: ${fx(k, 1)} kg`).join('\n'); if (window.Android && Android.copy) Android.copy(t); else if (navigator.clipboard) navigator.clipboard.writeText(t); $('#cps').textContent = '✓ Copied'; };
   };
   sched();
+});
+
+
+/* ---------- full-screen image viewer: pinch, drag, double-tap, buttons ---------- */
+function openImage(src, cap) {
+  let ov = document.getElementById('imgv');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'imgv'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="iv-stage"><img src="${src}" alt=""></div>
+    <div class="iv-bar"><button data-z="-1">−</button><button data-z="0">Fit</button><button data-z="1">+</button><button data-x>✕</button></div>
+    ${cap ? `<div class="iv-cap">${esc(cap)}</div>` : ''}`;
+  ov.hidden = false; history.pushState({ iv: 1 }, '');
+  const img = ov.querySelector('img'), stage = ov.querySelector('.iv-stage');
+  let s = 1, x = 0, y = 0;
+  const apply = (anim) => { img.style.transition = anim ? 'transform .2s' : 'none'; img.style.transform = `translate(${x}px,${y}px) scale(${s})`; };
+  const clamp = () => { s = Math.min(8, Math.max(1, s)); if (s === 1) { x = 0; y = 0; } };
+  const zoomAt = (ns, cx, cy) => { const r = stage.getBoundingClientRect(); const px = cx - r.left - r.width / 2, py = cy - r.top - r.height / 2; x = px - (px - x) * ns / s; y = py - (py - y) * ns / s; s = ns; clamp(); };
+  const pts = new Map(); let start = null, lastTap = 0;
+  stage.addEventListener('pointerdown', e => { stage.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); start = null;
+    if (pts.size === 1) { const now = Date.now(); if (now - lastTap < 300) { zoomAt(s > 1.2 ? 1 : 2.5, e.clientX, e.clientY); apply(true); } lastTap = now; } });
+  stage.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return; const prev = pts.get(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2) {
+      const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      if (!start) start = { d, s }; else zoomAt(start.s * d / start.d, mx, my);
+      apply(false);
+    } else if (pts.size === 1 && s > 1) { x += e.clientX - prev[0]; y += e.clientY - prev[1]; apply(false); }
+  });
+  const up = e => { pts.delete(e.pointerId); start = null; };
+  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+  stage.addEventListener('wheel', e => { e.preventDefault(); zoomAt(s * (e.deltaY < 0 ? 1.2 : 1 / 1.2), e.clientX, e.clientY); apply(true); }, { passive: false });
+  ov.querySelectorAll('[data-z]').forEach(b => b.onclick = () => { const r = stage.getBoundingClientRect(), z = +b.dataset.z; zoomAt(z ? s * (z > 0 ? 1.5 : 1 / 1.5) : 1, r.left + r.width / 2, r.top + r.height / 2); apply(true); });
+  ov.querySelector('[data-x]').onclick = () => history.back();
+  apply(false);
+}
+window.addEventListener('popstate', () => { const ov = document.getElementById('imgv'); if (ov && !ov.hidden) ov.hidden = true; });
+document.addEventListener('click', e => {
+  const im = e.target.closest('figure img');
+  if (im) { const cap = im.parentElement.querySelector('figcaption'); openImage(im.getAttribute('src'), cap ? cap.textContent : ''); }
 });
 
 /* ---------- router ---------- */
