@@ -49,6 +49,14 @@ function modal(html) {
   m.onclick = e => { if (e.target === m || e.target.dataset.close != null) m.hidden = true; };
 }
 
+function toast(msg, undo) {
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  t.innerHTML = `<span>${esc(msg)}</span>${undo ? '<button id="undoBtn">UNDO</button>' : ''}`;
+  t.className = 'show'; clearTimeout(t._h); t._h = setTimeout(() => t.className = '', 6000);
+  if (undo) document.getElementById('undoBtn').onclick = () => { t.className = ''; undo(); };
+}
+
 /* ---------- rendering of handbook content ---------- */
 function blocks(bs) {
   let h = '', ul = false;
@@ -121,9 +129,14 @@ route(/^#\/s\/(\w+)$/, async (id) => {
   d.chapters.forEach((c, i) => {
     if (/^PART [IVX]+/.test(c.t) && !c.b.length && !c.s.length) { h += `<div class="part">${esc(c.t)}</div>`; return; }
     n++;
-    h += `<a href="#/c/${id}/${i}" class="${read[i] ? 'done' : ''}"><span class="n">${read[i] ? '✓' : n}</span><span class="t">${esc(c.t)}</span>${c.k === 'rev' ? '<span class="tag rev">revision</span>' : c.k === 'res' ? '<span class="tag">links</span>' : ''}</a>`;
+    h += `<a href="#/c/${id}/${i}" class="${read[i] ? 'done' : ''}"><span class="n" ${read[i] ? `data-unread="${i}" title="Tap to mark as unread"` : ''}>${read[i] ? '✓' : n}</span><span class="t">${esc(c.t)}</span>${c.k === 'rev' ? '<span class="tag rev">revision</span>' : c.k === 'res' ? '<span class="tag">links</span>' : ''}</a>`;
   });
-  V.innerHTML = h + '</div>';
+  V.innerHTML = h + '<div class="mut" style="margin:10px 4px">Tip: tap a green ✓ to mark that topic as unread.</div></div>';
+  V.querySelectorAll('[data-unread]').forEach(el => el.onclick = e => {
+    e.preventDefault(); e.stopPropagation(); const i = +el.dataset.unread;
+    delete S.read[id][i]; save('read'); render();
+    toast('Marked as unread', () => { S.read[id][i] = 1; save('read'); render(); });
+  });
 });
 
 route(/^#\/c\/(\w+)\/(\d+)(?:\/([\d-]+))?$/, async (id, ci, path) => {
@@ -135,7 +148,7 @@ route(/^#\/c\/(\w+)\/(\d+)(?:\/([\d-]+))?$/, async (id, ci, path) => {
   h += c.s.map((s, i) => section(s, [i], 2, c.s.length <= 3)).join('');
   const prev = ci > 0 ? ci - 1 : null, next = ci < d.chapters.length - 1 ? ci + 1 : null;
   const read = (S.read[id] || {})[ci];
-  h += `</div><div class="card"><button class="btn wide" id="mark">${read ? '✓ Marked as read' : 'Mark as read'}</button>
+  h += `</div><div class="card"><button class="btn wide ${read ? 'sec' : ''}" id="mark">${read ? '✓ Read — tap to mark as unread' : 'Mark as read'}</button>
     <div class="seg"><button class="btn sec" id="bm">${marked ? '🔖 Bookmarked' : '🔖 Bookmark'}</button>
     <button class="btn sec" id="expand">Open all</button></div>
     <div class="seg">${prev != null ? `<a class="btn sec" href="#/c/${id}/${prev}">‹ Previous</a>` : ''}${next != null ? `<a class="btn sec" href="#/c/${id}/${next}">Next ›</a>` : ''}</div></div>`;
@@ -146,7 +159,14 @@ route(/^#\/c\/(\w+)\/(\d+)(?:\/([\d-]+))?$/, async (id, ci, path) => {
     parts.forEach((p, k) => { sel += (k ? '-' : '') + p; const el = document.getElementById(sel); if (el) el.open = true; });
     const el = document.getElementById(sel); if (el) setTimeout(() => el.scrollIntoView({ block: 'start' }), 60);
   }
-  $('#mark').onclick = () => { S.read[id] = S.read[id] || {}; S.read[id][ci] = 1; save('read'); if (next != null) location.hash = `#/c/${id}/${next}`; else $('#mark').textContent = '✓ Marked as read'; };
+  $('#mark').onclick = () => {
+    S.read[id] = S.read[id] || {};
+    if (S.read[id][ci]) { delete S.read[id][ci]; save('read'); const m = $('#mark'); m.textContent = 'Mark as read'; m.classList.remove('sec'); toast('Marked as unread'); return; }
+    S.read[id][ci] = 1; save('read');
+    const undo = () => { delete S.read[id][ci]; save('read'); location.hash = `#/c/${id}/${ci}`; };
+    if (next != null) { location.hash = `#/c/${id}/${next}`; setTimeout(() => toast(`“${c.t}” marked as read`, undo), 150); }
+    else { const m = $('#mark'); m.textContent = '✓ Read — tap to mark as unread'; m.classList.add('sec'); toast('Marked as read', undo); }
+  };
   $('#bm').onclick = () => {
     const i = S.marks.findIndex(m => m.s === id && m.c === ci);
     if (i >= 0) S.marks.splice(i, 1); else S.marks.unshift({ s: id, c: ci, t: c.t });
