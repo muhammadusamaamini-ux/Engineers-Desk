@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Engineer's Desk</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="bar">
+  <button id="back" aria-label="Back">‹</button>
+  <h1 id="title">Engineer's Desk</h1>
+  <button id="searchBtn" aria-label="Search">⌕</button>
+</header>
+<main id="view"></main>
+<nav id="tabs">
+  <a href="#/" data-tab="home"><span>🏠</span>Home</a>
+  <a href="#/subjects" data-tab="subjects"><span>📚</span>Subjects</a>
+  <a href="#/practice" data-tab="practice"><span>✅</span>Practice</a>
+  <a href="#/plan" data-tab="plan"><span>🗓️</span>Plan</a>
+  <a href="#/more" data-tab="more"><span>⚙️</span>More</a>
+</nav>
+<div id="modal" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

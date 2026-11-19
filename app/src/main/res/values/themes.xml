@@ -1,0 +1,7 @@
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:statusBarColor">#0f1420</item>
+        <item name="android:navigationBarColor">#182033</item>
+        <item name="android:windowBackground">#0f1420</item>
+    </style>
+</resources>
